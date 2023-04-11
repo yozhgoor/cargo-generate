@@ -33,6 +33,7 @@
 
     </head>
     <body>
+    <div id="body-container">
         <!-- Provide site root to javascript -->
         <script>
             var path_to_root = "";
@@ -70,10 +71,12 @@
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
             var html = document.querySelector('html');
-            var sidebar = 'hidden';
+            var sidebar = null;
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
             }
             html.classList.remove('sidebar-visible');
             html.classList.add("sidebar-" + sidebar);
@@ -163,24 +166,36 @@ author, truly wants the <code>.liquid</code> file-ending, you need to repeat it 
 <p>Here's an example of using <code>cargo-generate</code> with <a href="https://github.com/ashleygwilliams/wasm-pack-template">this template</a>:</p>
 <p><img src="./demo.gif" alt="demo.gif" /></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
-<h2 id="using-cargo-with-systems-openssl"><a class="header" href="#using-cargo-with-systems-openssl">Using <code>cargo</code> with system's OpenSSL</a></h2>
+<h2 id="using-cargo-generate-with-vendored-libgit2-and-systems-openssl"><a class="header" href="#using-cargo-generate-with-vendored-libgit2-and-systems-openssl">Using <code>cargo-generate</code> with vendored <code>libgit2</code> and system's OpenSSL</a></h2>
+<p>By default, cargo-generate uses vendored sources for <code>libgit2</code> and OpenSSL that is installed on your system.</p>
 <pre><code class="language-sh">cargo install cargo-generate
 </code></pre>
-<p>See the <a href="https://crates.io/crates/openssl-sys"><code>openssl-sys</code> crate readme</a> on how to obtain the OpenSSL library for your system. Alternatively, use the <code>vendored-openssl</code> flag if you do not want to install OpenSSL.</p>
-<h2 id="using-cargo-with-vendored-openssl"><a class="header" href="#using-cargo-with-vendored-openssl">Using <code>cargo</code> with vendored OpenSSL</a></h2>
-<blockquote>
-<p>⚠️ NOTE: <code>vendored-openssl</code> requires the following packages to be installed:</p>
+<p>This requires the following dependencies on your system:</p>
 <ul>
-<li>libssl-dev</li>
-<li>gcc</li>
-<li>m4</li>
-<li>ca-certificates</li>
-<li>make</li>
-<li>perl</li>
+<li><code>libssl-dev</code> (this could also be named openssl)</li>
 </ul>
-</blockquote>
+<h2 id="using-cargo-generate-with-vendored-openssl"><a class="header" href="#using-cargo-generate-with-vendored-openssl">Using <code>cargo-generate</code> with vendored OpenSSL</a></h2>
+<p>However, you can also opt in to use a vendored OpenSSL version.
+So that you don't have to have OpenSSL installed and built it on the spot.</p>
+<p>this would require the following dependencies on your system, as documented by the <a href="https://docs.rs/openssl"><code>openssl</code> crate</a>:</p>
+<ul>
+<li>A C compiler (<code>gcc</code>, for example)</li>
+<li><code>perl</code> and <code>perl-core</code></li>
+<li><code>make</code></li>
+</ul>
 <pre><code class="language-sh">cargo install cargo-generate --features vendored-openssl
 </code></pre>
+<h2 id="using-cargo-generate-with-systems-libgit2-and-systems-openssl"><a class="header" href="#using-cargo-generate-with-systems-libgit2-and-systems-openssl">Using <code>cargo-generate</code> with system's <code>libgit2</code> and system's OpenSSL</a></h2>
+<p>You can opt-out of vendored libraries and use <code>libgit2</code> and OpenSSL from your system
+by building cargo-generate without the default dependencies.</p>
+<pre><code class="language-sh">cargo install cargo-generate --no-default-features
+</code></pre>
+<p>This will require the following dependencies on your system:</p>
+<ul>
+<li><code>pkg-config</code></li>
+<li><code>libgit2</code></li>
+<li><code>libssl-dev</code> (this could also be named openssl)</li>
+</ul>
 <h2 id="using-pacman-arch-linux"><a class="header" href="#using-pacman-arch-linux">Using <code>pacman</code> (Arch Linux)</a></h2>
 <p><code>cargo-generate</code> can be installed from the <a href="https://archlinux.org/packages/community/x86_64/cargo-generate/">community repository</a> for Arch Linux:</p>
 <pre><code class="language-sh">pacman -S cargo-generate
@@ -331,6 +346,19 @@ The <code>.genignore</code> file is always ignored, so there is no need to list 
 <h3 id="additional-liquid-filters"><a class="header" href="#additional-liquid-filters">Additional <code>liquid</code> filters</a></h3>
 <p>Following are filters that <code>cargo-generate</code> expands the <code>liquid</code> language with.</p>
 <ul>
+<li>
+<p><strong><code>rhai</code></strong></p>
+<p>Tries to run the argument as a <code>rhai</code> script. Whatever the script returns will be the output of
+the filter.</p>
+<p>Example Liquid:</p>
+<pre><code class="language-liquid">Here we try to run a rhai script: {{&quot;script_name.rhai&quot; | rhai}}
+</code></pre>
+<blockquote>
+<p>⚠️ NOTE: <code>Liquid</code> does not support failing filters, thus if the script fails for any reason, 
+<code>cargo-generate</code> will simply print a warning message to stderr, and <code>Liquid</code> will leave 
+the substitution in its original form.</p>
+</blockquote>
+</li>
 <li>
 <p><strong><code>kebab_case</code></strong></p>
 <p><code>&quot;We are going to inherit the earth.&quot;</code> =&gt; <code>&quot;we-are-going-to-inherit-the-earth&quot;</code></p>
@@ -854,8 +882,8 @@ jobs:
     env:
       PROJECT_NAME: mytemplate
     steps:
-      - uses: actions/checkout@v2
-      - uses: cargo-generate/cargo-generate-action@v0.11.0
+      - uses: actions/checkout@v3
+      - uses: cargo-generate/cargo-generate-action@v0.17
         with:
           name: ${{ env.PROJECT_NAME }}
       - uses: actions-rs/toolchain@v1
@@ -925,5 +953,6 @@ If you want to contribute to <code>cargo-generate</code>, please see <a href="ht
         });
         </script>
 
+    </div>
     </body>
 </html>
